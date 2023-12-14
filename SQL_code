@@ -1,79 +1,112 @@
--–Final extract the data—
-SELECT users.id as uid,
-groups.group as testgroup,
-users.country as country,
-users.gender as gender,
-COALESCE(groups.device, 'NA') AS device_type,
-CASE WHEN activity.spent > 0 THEN 1 ELSE 0 END AS Converted,
-SUM(COALESCE(activity.spent, 0)) AS totalspen
-FROM users
-LEFT JOIN groups ON groups.uid = users.id
-LEFT JOIN activity ON users.id = activity.uid
-GROUP BY 1,2,3,4,5,6
-
-
-
-
-AVERAGE SPENT PER GROUP
-SELECT g.group,AVG(a.spent)
-         FROM users u
-         LEFT JOIN activity a ON u.id = a.uid
-         LEFT JOIN groups g ON g.uid = a.uid
-         WHERE g.group IS NOT NULL
-         GROUP BY g.group
-
-Total conversion
-
-select avg(COALESCE(t.conversion,0))*100
-FROM users
-JOIN groups g ON users.id = g.uid
-left JOIN (select uid, case when sum(spent)>0 then 1 else 0 end as conversion
-from activity
-group by uid) t on t.uid=users.id
-
-
-Conversion per group 
-
-select g.group, avg(COALESCE(t.conversion,0))*100
-FROM users
-JOIN groups g ON users.id = g.uid
-left JOIN (select uid, case when sum(spent)>0 then 1 else 0 end as conversion
-from activity
-group by uid) t on t.uid=users.id
-GROUP BY g.group
-
-
-
-Conversion per group 
-
-WITH converted as 
-(SELECT distinct uid,
-case when spent is not null then 1
-else 0 end as user_converted
-from activity)
-Select "group", 
-ROUND(avg(coalesce(user_converted,0))*100,3)
-from groups g 
-left join converted c 
-on g.uid = c.uid
-group by "group"
-
-Avg amount spent for the group
-
-WITH total_spent as(
+-- Final extract the data
 SELECT
-    g.uid,
+    users.id AS uid,
+    groups.group AS testgroup,
+    users.country AS country,
+    users.gender AS gender,
+    COALESCE(groups.device, 'NA') AS device_type,
+    CASE WHEN activity.spent > 0 THEN 1 ELSE 0 END AS Converted,
+    SUM(COALESCE(activity.spent, 0)) AS totalspen
+FROM
+    users
+LEFT JOIN
+    groups ON groups.uid = users.id
+LEFT JOIN
+    activity ON users.id = activity.uid
+GROUP BY 1, 2, 3, 4, 5, 6;
+
+-- Average spent per group
+SELECT
     g.group,
-    SUM(COALESCE(activity.spent, 0)) AS sum_spent
+    AVG(a.spent)
 FROM
     users u
 LEFT JOIN
-    groups g ON g.uid = u.id
+    activity a ON u.id = a.uid
 LEFT JOIN
-    activity ON u.id = activity.uid
-GROUP BY g.group, g.uid)
-SELECT groups.group, avg(sum_spent) as avgspent
-FROM total_spent
-LEFT JOIN groups ON groups.uid = total_spent.uid
-group by groups.group
+    groups g ON g.uid = a.uid
+WHERE
+    g.group IS NOT NULL
+GROUP BY
+    g.group;
+
+-- Total conversion
+SELECT
+    AVG(COALESCE(t.conversion, 0)) * 100
+FROM
+    users
+JOIN
+    groups g ON users.id = g.uid
+LEFT JOIN
+    (SELECT
+        uid,
+        CASE WHEN SUM(spent) > 0 THEN 1 ELSE 0 END AS conversion
+    FROM
+        activity
+    GROUP BY
+        uid) t ON t.uid = users.id;
+
+-- Conversion per group
+SELECT
+    g.group,
+    AVG(COALESCE(t.conversion, 0)) * 100
+FROM
+    users
+JOIN
+    groups g ON users.id = g.uid
+LEFT JOIN
+    (SELECT
+        uid,
+        CASE WHEN SUM(spent) > 0 THEN 1 ELSE 0 END AS conversion
+    FROM
+        activity
+    GROUP BY
+        uid) t ON t.uid = users.id
+GROUP BY
+    g.group;
+
+-- Conversion per group
+WITH converted AS (
+    SELECT DISTINCT
+        uid,
+        CASE WHEN spent IS NOT NULL THEN 1 ELSE 0 END AS user_converted
+    FROM
+        activity
+)
+SELECT
+    "group",
+    ROUND(AVG(COALESCE(user_converted, 0)) * 100, 3)
+FROM
+    groups g
+LEFT JOIN
+    converted c ON g.uid = c.uid
+GROUP BY
+    "group";
+
+-- Average amount spent for the group
+WITH total_spent AS (
+    SELECT
+        g.uid,
+        g.group,
+        SUM(COALESCE(activity.spent, 0)) AS sum_spent
+    FROM
+        users u
+    LEFT JOIN
+        groups g ON g.uid = u.id
+    LEFT JOIN
+        activity ON u.id = activity.uid
+    GROUP BY
+        g.group,
+        g.uid
+)
+SELECT
+    groups.group,
+    AVG(sum_spent) AS avgspent
+FROM
+    total_spent
+LEFT JOIN
+    groups ON groups.uid = total_spent.uid
+GROUP BY
+    groups.group;
+
 
